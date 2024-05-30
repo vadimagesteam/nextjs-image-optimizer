@@ -1,0 +1,25 @@
+{
+  "name": "@vadimages/nextjs-image-optimizer",
+  "version": "1.0.0",
+  "description": "Auto image optimization with mobile image support",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vadimagesteam/nextjs-image-optimizer.git"
+  },
+  "keywords": [
+    "nextjs",
+    "image",
+    "optimization",
+    "webp"
+  ],
+  "author": "Mykhailo Shumilov",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vadimagesteam/nextjs-image-optimizer/issues"
+  },
+  "homepage": "https://github.com/vadimagesteam/nextjs-image-optimizer#readme"
+}
