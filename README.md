@@ -3,7 +3,7 @@ This is a simple image optimizer for Next.js projects. It uses the sharp library
 
 ## Installation
 ```bash
-npm install @vadimages/next
+npm install vadimages-nextjs-image-optimizer
 ```
 
 ## Requirements
