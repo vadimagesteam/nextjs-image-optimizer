@@ -46,6 +46,7 @@ const vadimagesNextImageOptimizer = async function () {
     const imagesSizes = [320, 512, 480, 640, 787, 1024, 1280, 1440, 1920];
     const pixelRatio = [1, 2, 3];
     const optimizationDirName = '/opt/';
+    const formats = [ImageType.WEBP, ImageType.AVIF];
 
     const files = getFiles(imagesPath, [], optimizationDirName);
     console.log(`Total images found: ${files.length}`.blue);
@@ -61,7 +62,7 @@ const vadimagesNextImageOptimizer = async function () {
         speed: "N/A"
     });
     for (const file of files) {
-        await processFile(file, quality, imagesSizes, pixelRatio, optimizationDirName);
+        await processFile(file, quality, imagesSizes, pixelRatio, optimizationDirName, formats);
         imagesProgress.increment();
     }
     imagesProgress.stop();
@@ -69,7 +70,7 @@ const vadimagesNextImageOptimizer = async function () {
     console.log('Finish image optimization'.green);
 }
 
-const processFile = async function (file: string, quality: number, sizes: number[], pixelRatio: number[], optimizationDir: string) {
+const processFile = async function (file: string, quality: number, sizes: number[], pixelRatio: number[], optimizationDir: string, formats: ImageType[] = [ImageType.WEBP]){
     // console.log(`Processing file: ${file}`.yellow);
     // console.log(`Quality: ${quality}`);
     // console.log(`Sizes: ${sizes}`);
@@ -84,7 +85,9 @@ const processFile = async function (file: string, quality: number, sizes: number
     }
     for (const size of sizes) {
         for (const ratio of pixelRatio) {
-            await optimizeImage(ImageType.WEBP, fileData, quality, size, ratio, fullOptimizationDir, fileName);
+            for(const format of formats) {
+                await optimizeImage(format, fileData, quality, size, ratio, fullOptimizationDir, fileName);
+            }
         }
 
     }
