@@ -4,7 +4,7 @@ import path from "node:path";
 
 
 export interface VadImageProps
-    extends Omit<ImageProps, "src" | "loader" | "quality"> {
+    extends Omit<ImageProps, "src" | "quality"> {
     src: string | StaticImageData;
     basePath?: string;
     mobileSrc?: string | StaticImageData;
