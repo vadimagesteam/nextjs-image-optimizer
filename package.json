@@ -1,5 +1,5 @@
 {
-  "name": "@vadimages/nextjs-image-optimizer",
+  "name": "vadimages-nextjs-image-optimizer",
   "version": "1.0.0",
   "description": "Auto image optimization with mobile image support",
   "main": "./dist/index.js",
