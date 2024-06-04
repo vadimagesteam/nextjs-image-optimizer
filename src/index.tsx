@@ -56,14 +56,14 @@ const VadImage = ({
                 srcSet={imagesSizes.map((size) => {
                     return `${pathData.dir}${optimizationDirName}${pathData.name}-${size}x1.${pathData.ext} ${size}w`
                 }).join(", ")}
-                type={`image/${pathData.ext}`}
+                type={`image/${pathData.ext.replace('.','')}`}
             />
-            <Image
-                src={src}
+            <img
+                src={src.toString()}
                 alt={alt}
                 width={width}
                 height={height}
-                priority={priority}
+                // priority={priority}
             />
         </picture>
     );
