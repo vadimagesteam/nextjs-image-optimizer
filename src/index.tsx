@@ -47,41 +47,39 @@ const VadImage = ({
                   }: VadImageProps
 ) => {
 
-    console.log('env: ', process.env);
-    console.log('vadImage_imagesPath: ', process.env.vadImage_imagesPath);
-
-    const imagesSizes = [320, 512, 480, 640, 787, 1024, 1280, 1440, 1920];
-    const pixelRatio = [1, 2, 3];
-    const optimizationDirName = '/opt/';
-    const formats = [ImageType.WEBP, ImageType.AVIF];
+    const imagesSizes = process.env.vadImage_imagesSizes?.split(',').map((v) => Number(v)) ?? [320, 512, 480, 640, 787, 1024, 1280, 1440, 1920];
+    const pixelRatio = process.env.vadImage_pixelRatio?.split(',').map((v) => Number(v)) ?? [1, 2, 3];
+    const optimizationDirName = process.env.vadImage_optimizationDirName ?? '/opt/';
+    const formats = process.env.vadImage_formats?.split(',').map((v) => v as ImageType) ?? [ImageType.WEBP, ImageType.AVIF];
 
     const pathData = path.parse(src as string);
+    const mobilePathData = mobileSrc ? path.parse(mobileSrc as string) : null;
 
     return (
         <picture>
             {formats.map((format) => (
-                <source
-                    key={format}
-                    srcSet={imagesSizes.map((size) => {
-                        return pixelRatio.map((ratio) => {
-                            return `${pathData.dir}${optimizationDirName}${pathData.name}-${size}x${ratio}.${format} ${size}w`
-                        }).join(", ");
-                    }).join(", ")}
-                    type={`image/${format}`}
-                />
+                imagesSizes.map((size) => (
+                    pixelRatio.map((ratio) => {
+                        let imageUrl  = `${pathData.dir}${optimizationDirName}${pathData.name}-${size}w-${ratio}x.${format} ${size}w`;
+                        if(mobilePathData && size <= 878){
+                            imageUrl =  `${mobilePathData.dir}${optimizationDirName}${mobilePathData.name}-${size}w-${ratio}x.${format} ${size}w`
+                        }
+                        return (<source media={`(max-width: ${size}px)`} srcSet={imageUrl} type={`image/${format}`}/>);
+                    })
+                ))
             ))}
-            <source
-                srcSet={imagesSizes.map((size) => {
-                    return `${pathData.dir}${optimizationDirName}${pathData.name}-${size}x1.${pathData.ext} ${size}w`
-                }).join(", ")}
-                type={`image/${pathData.ext.replace('.','')}`}
-            />
-            <img
+
+            <Image
                 src={src.toString()}
                 alt={alt}
                 width={width}
                 height={height}
-                // priority={priority}
+                priority={priority}
+                className={className}
+                loading={loading}
+                unoptimized={unoptimized}
+                style={style}
+                {...rest}
             />
         </picture>
     );

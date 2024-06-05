@@ -63,27 +63,28 @@ const vadimagesNextImageOptimizer = async function () {
 
     const files = getFiles(imagesPath, [], optimizationDirName);
     console.log(`Total images found: ${files.length}`.blue);
+    const filesCountToGenerate = files.length * imagesSizes.length * pixelRatio.length * formats.length;
+    console.log(`Total images to generate: ${filesCountToGenerate}`.blue)
 
     const imagesProgress = new cliProgress.SingleBar({
-        format: 'CLI Progress |' + colors.cyan('{bar}') + '| {percentage}% || {value}/{total} Chunks || Speed: {speed}',
+        format: 'Generate images |' + colors.cyan('{bar}') + '| {percentage}% || {value}/{total} Files',
         barCompleteChar: '\u2588',
         barIncompleteChar: '\u2591',
         hideCursor: true,
 
     });
-    imagesProgress.start(files.length, 0, {
+    imagesProgress.start(filesCountToGenerate, 0, {
         speed: "N/A"
     });
     for (const file of files) {
-        await processFile(file, quality, imagesSizes, pixelRatio, optimizationDirName, formats);
-        imagesProgress.increment();
+        await processFile(file, quality, imagesSizes, pixelRatio, optimizationDirName, formats, imagesProgress);
     }
     imagesProgress.stop();
 
     console.log('Finish image optimization'.green);
 }
 
-const processFile = async function (file: string, quality: number, sizes: number[], pixelRatio: number[], optimizationDir: string, formats: ImageType[] = [ImageType.WEBP]) {
+const processFile = async function (file: string, quality: number, sizes: number[], pixelRatio: number[], optimizationDir: string, formats: ImageType[] = [ImageType.WEBP], progress: cliProgress.SingleBar | null = null ){
     // console.log(`Processing file: ${file}`.yellow);
     // console.log(`Quality: ${quality}`);
     // console.log(`Sizes: ${sizes}`);
@@ -100,6 +101,9 @@ const processFile = async function (file: string, quality: number, sizes: number
         for (const ratio of pixelRatio) {
             for (const format of formats) {
                 await optimizeImage(format, fileData, quality, size, ratio, fullOptimizationDir, fileName);
+                if(progress){
+                    progress.increment();
+                }
             }
         }
 
