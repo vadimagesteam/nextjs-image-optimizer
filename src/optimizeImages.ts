@@ -6,8 +6,11 @@ import mime from 'mime';
 import * as cliProgress from 'cli-progress';
 import * as path from "node:path";
 import sharp from "sharp";
+import loadConfig from "next/dist/server/config";
+import {VadImageBlockConfig} from "./index";
 
 colors.enable();
+
 
 enum ImageType {
     JPG = 'jpg',
@@ -29,7 +32,7 @@ function getFiles(dir: string, files: string[] = [], excludePath: string) {
         } else {
             // If it is a file, push the full path to the files array
             const fileType = mime.getType(name);
-            if (fileType?.includes('image') && !name.includes(excludePath)){
+            if (fileType?.includes('image') && !name.includes(excludePath)) {
                 files.push(path.resolve(name));
             }
         }
@@ -37,16 +40,26 @@ function getFiles(dir: string, files: string[] = [], excludePath: string) {
     return files
 }
 
+const prepareImagesPath = (path: string): string => {
+    if (path.startsWith("/")) {
+        path = path.slice(1);
+    }
+    return __dirname + '/../' + path;
+}
+
 const vadimagesNextImageOptimizer = async function () {
+    const config = await loadNextConfig();
+
+    console.log({config});
+
+    const quality = config.quality;
+    const imagesPath = prepareImagesPath(config.imagesPath);
+    const imagesSizes = config.imagesSizes;
+    const pixelRatio = config.pixelRatio;
+    const optimizationDirName = config.optimizationDirName;
+    const formats = config.formats;
 
     console.log('Start image optimization'.green);
-
-    const quality = 75;
-    const imagesPath = __dirname + '/../example/images';
-    const imagesSizes = [320, 512, 480, 640, 787, 1024, 1280, 1440, 1920];
-    const pixelRatio = [1, 2, 3];
-    const optimizationDirName = '/opt/';
-    const formats = [ImageType.WEBP, ImageType.AVIF];
 
     const files = getFiles(imagesPath, [], optimizationDirName);
     console.log(`Total images found: ${files.length}`.blue);
@@ -70,7 +83,7 @@ const vadimagesNextImageOptimizer = async function () {
     console.log('Finish image optimization'.green);
 }
 
-const processFile = async function (file: string, quality: number, sizes: number[], pixelRatio: number[], optimizationDir: string, formats: ImageType[] = [ImageType.WEBP]){
+const processFile = async function (file: string, quality: number, sizes: number[], pixelRatio: number[], optimizationDir: string, formats: ImageType[] = [ImageType.WEBP]) {
     // console.log(`Processing file: ${file}`.yellow);
     // console.log(`Quality: ${quality}`);
     // console.log(`Sizes: ${sizes}`);
@@ -85,7 +98,7 @@ const processFile = async function (file: string, quality: number, sizes: number
     }
     for (const size of sizes) {
         for (const ratio of pixelRatio) {
-            for(const format of formats) {
+            for (const format of formats) {
                 await optimizeImage(format, fileData, quality, size, ratio, fullOptimizationDir, fileName);
             }
         }
@@ -122,10 +135,49 @@ const optimizeImage = async function (format: ImageType, fileData: Buffer, quali
             });
             break;
     }
+    if (!fs.existsSync(path)){
+        fs.mkdirSync(path);
+    }
     const optimizedFileNameAndPath = `${path}${baseName}-${size}w-${pixelRatio}x.${format}`;
     const info = await transformer.toFile(optimizedFileNameAndPath);
 }
 
+const loadNextConfig = async function (): Promise<VadImageBlockConfig> {
+
+    const nextConfigPathIndex = process.argv.indexOf("--nextConfigPath");
+
+    let nextConfigPath =
+        nextConfigPathIndex !== -1
+            ? process.argv[nextConfigPathIndex + 1]
+            : undefined;
+
+    if (nextConfigPath) {
+        nextConfigPath = path.isAbsolute(nextConfigPath)
+            ? nextConfigPath
+            : path.join(process.cwd(), nextConfigPath);
+    } else {
+        nextConfigPath = path.join(process.cwd(), "next.config.js");
+    }
+    const nextConfigFolder = path.dirname(nextConfigPath);
+    const nextjsConfig = await loadConfig("phase-export", nextConfigFolder);
+
+// Check if nextjsConfig is an object or is undefined
+    if (typeof nextjsConfig !== "object" || nextjsConfig === null) {
+        throw new Error("next.config.js is not an object");
+    }
+    // const legacyPath = nextjsConfig.images?.nextImageExportOptimizer;
+    // const newPath = nextjsConfig.env;
+
+    return {
+        imagesSizes: nextjsConfig.env.vadImage_imagesSizes?.split(',').map((v) => Number(v)) ?? [320, 512, 480, 640, 787, 1024, 1280, 1440, 1920],
+        pixelRatio: nextjsConfig.env.vadImage_pixelRatio?.split(',').map((v) => Number(v)) ?? [1, 2, 3],
+        optimizationDirName: nextjsConfig.env.vadImage_optimizationDirName ?? '/opt/',
+        formats: nextjsConfig.env.vadImage_formats?.split(',').map((v) => v as ImageType) ?? [ImageType.WEBP, ImageType.AVIF],
+        quality: Number(nextjsConfig.env.vadImage_quality) ?? 75,
+        imagesPath: nextjsConfig.env.vadImage_imagesPath ?? 'public/images',
+        buildFolderPath: nextjsConfig.env.vadImage_buildFolderPath ?? 'build',
+    }
+}
 
 if (require.main === module) {
     vadimagesNextImageOptimizer();

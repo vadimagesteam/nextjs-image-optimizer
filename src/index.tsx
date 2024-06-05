@@ -1,6 +1,7 @@
 import Image, {ImageProps, StaticImageData} from "next/image";
 import React from "react";
 import path from "node:path";
+import {NextConfig} from "next";
 
 
 export interface VadImageProps
@@ -17,6 +18,20 @@ export enum ImageType {
     AVIF = 'avif'
 }
 
+export interface VadImageBlockConfig {
+    imagesSizes: number[];
+    pixelRatio: number[];
+    optimizationDirName: string;
+    formats: ImageType[];
+    quality: number;
+    imagesPath: string;
+    buildFolderPath: string;
+}
+
+export interface VadImageConfig extends NextConfig {
+    VadImage: VadImageBlockConfig
+}
+
 const VadImage = ({
                       src,
                       mobileSrc,
@@ -31,6 +46,9 @@ const VadImage = ({
                       ...rest
                   }: VadImageProps
 ) => {
+
+    console.log('env: ', process.env);
+    console.log('vadImage_imagesPath: ', process.env.vadImage_imagesPath);
 
     const imagesSizes = [320, 512, 480, 640, 787, 1024, 1280, 1440, 1920];
     const pixelRatio = [1, 2, 3];
