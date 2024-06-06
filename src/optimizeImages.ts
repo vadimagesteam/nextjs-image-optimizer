@@ -45,7 +45,8 @@ const getFiles = async (dir: string, files: string[] = [], excludePath: string)=
         } else {
             // If it is a file, push the full path to the files array
             const fileType = mime.lookup(name);
-            if (fileType?.includes('image') && !name.includes(excludePath)) {
+            console.log({fileType});
+            if (fileType && fileType?.includes('image') && !name.includes(excludePath)) {
                 files.push(path.resolve(name));
             }
         }
@@ -57,7 +58,7 @@ const prepareImagesPath = (path: string): string => {
     if (path.startsWith("/")) {
         path = path.slice(1);
     }
-    return __dirname + '/../' + path;
+    return process.cwd() + '/' + path;
 }
 
 const vadimagesNextImageOptimizer = async function () {
@@ -71,6 +72,8 @@ const vadimagesNextImageOptimizer = async function () {
     const pixelRatio = config.pixelRatio;
     const optimizationDirName = config.optimizationDirName;
     const formats = config.formats;
+
+    console.log('imagesPath: ', imagesPath);
 
     console.log('Start image optimization'.green);
 
