@@ -1,13 +1,16 @@
 {
   "name": "vadimages-nextjs-image-optimizer",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "description": "Auto image optimization with mobile image support",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "bin": "./dist/optimizeImages.js",
   "files": [
-    "dist"
+    "dist/index.d.ts",
+    "dist/index.js",
+    "dist/optimizeImages.d.ts",
+    "dist/optimizeImages.js"
   ],
   "engines": {
     "node": ">=18.0.0"
@@ -20,7 +23,7 @@
     }
   },
   "scripts": {
-    "build": "rimraf dist && tsup",
+    "build": "rimraf dist && tsc && tsc --project tsconfig.optimizeImages.json",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev-optimization": "tsx src/optimizeImages.ts"
   },
@@ -52,7 +55,7 @@
     "cli-progress": "^3.12.0",
     "colors": "^1.4.0",
     "glob": "^10.4.1",
-    "mime": "^4.0.3",
+    "mime-types": "^2.1.35",
     "next": "^14.2.3",
     "react": "^18.3.1",
     "sharp": "^0.33.4"

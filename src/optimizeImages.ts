@@ -2,15 +2,27 @@
 
 import colors from 'colors';
 import fs from 'fs';
-import mime from 'mime';
+// import mime from 'mime';
 import * as cliProgress from 'cli-progress';
 import * as path from "node:path";
 import sharp from "sharp";
 import loadConfig from "next/dist/server/config";
-import {VadImageBlockConfig} from "./index";
+var mime = require('mime-types')
+
+
 
 colors.enable();
 
+
+ interface VadImageBlockConfig {
+    imagesSizes: number[];
+    pixelRatio: number[];
+    optimizationDirName: string;
+    formats: ImageType[];
+    quality: number;
+    imagesPath: string;
+    buildFolderPath: string;
+}
 
 enum ImageType {
     JPG = 'jpg',
@@ -19,7 +31,8 @@ enum ImageType {
     AVIF = 'avif'
 }
 
-function getFiles(dir: string, files: string[] = [], excludePath: string) {
+const getFiles = async (dir: string, files: string[] = [], excludePath: string)=> {
+     // const mime = await import('mime');
     // Get an array of all files and directories in the passed directory using fs.readdirSync
     const fileList = fs.readdirSync(dir);
     // Create the full path of the file/directory by concatenating the passed directory and file/directory name
@@ -31,7 +44,7 @@ function getFiles(dir: string, files: string[] = [], excludePath: string) {
             getFiles(name, files, excludePath)
         } else {
             // If it is a file, push the full path to the files array
-            const fileType = mime.getType(name);
+            const fileType = mime.lookup(name);
             if (fileType?.includes('image') && !name.includes(excludePath)) {
                 files.push(path.resolve(name));
             }
@@ -61,7 +74,7 @@ const vadimagesNextImageOptimizer = async function () {
 
     console.log('Start image optimization'.green);
 
-    const files = getFiles(imagesPath, [], optimizationDirName);
+    const files = await getFiles(imagesPath, [], optimizationDirName);
     console.log(`Total images found: ${files.length}`.blue);
     const filesCountToGenerate = files.length * imagesSizes.length * pixelRatio.length * formats.length;
     console.log(`Total images to generate: ${filesCountToGenerate}`.blue)
