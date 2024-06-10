@@ -45,7 +45,6 @@ const getFiles = async (dir: string, files: string[] = [], excludePath: string)=
         } else {
             // If it is a file, push the full path to the files array
             const fileType = mime.lookup(name);
-            console.log({fileType});
             if (fileType && fileType?.includes('image') && !name.includes(excludePath)) {
                 files.push(path.resolve(name));
             }
