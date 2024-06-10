@@ -2,19 +2,22 @@
 
 import colors from 'colors';
 import fs from 'fs';
-// import mime from 'mime';
 import * as cliProgress from 'cli-progress';
 import * as path from "node:path";
 import sharp from "sharp";
 import loadConfig from "next/dist/server/config";
-var mime = require('mime-types')
+
+var mime = require('mime-types');
+const md5File = require('md5-file');
+var md5 = require('md5');
+
 
 
 
 colors.enable();
 
 
- interface VadImageBlockConfig {
+interface VadImageBlockConfig {
     imagesSizes: number[];
     pixelRatio: number[];
     optimizationDirName: string;
@@ -31,8 +34,11 @@ enum ImageType {
     AVIF = 'avif'
 }
 
-const getFiles = async (dir: string, files: string[] = [], excludePath: string)=> {
-     // const mime = await import('mime');
+const cachingData: string[] = [];
+const cachingFilePath = process.cwd() + '/.vadimages-cache.json';
+
+const getFiles = async (dir: string, files: string[] = [], excludePath: string) => {
+    // const mime = await import('mime');
     // Get an array of all files and directories in the passed directory using fs.readdirSync
     const fileList = fs.readdirSync(dir);
     // Create the full path of the file/directory by concatenating the passed directory and file/directory name
@@ -60,9 +66,22 @@ const prepareImagesPath = (path: string): string => {
     return process.cwd() + '/' + path;
 }
 
+const loadCachingFile = async (path: string = cachingFilePath) => {
+    if(fs.existsSync(path)) {
+        var obj = JSON.parse(fs.readFileSync(path, 'utf8'));
+        for (const key in obj) {
+            cachingData.push(obj[key]);
+        }
+    }
+}
+
+const storeCachingFile = async (path: string = cachingFilePath) => {
+    fs.writeFileSync(path, JSON.stringify(cachingData));
+}
+
 const vadimagesNextImageOptimizer = async function () {
     const config = await loadNextConfig();
-
+    await loadCachingFile();
     console.log({config});
 
     const quality = config.quality;
@@ -95,16 +114,17 @@ const vadimagesNextImageOptimizer = async function () {
         await processFile(file, quality, imagesSizes, pixelRatio, optimizationDirName, formats, imagesProgress);
     }
     imagesProgress.stop();
-
+    await storeCachingFile();
     console.log('Finish image optimization'.green);
 }
 
-const processFile = async function (file: string, quality: number, sizes: number[], pixelRatio: number[], optimizationDir: string, formats: ImageType[] = [ImageType.WEBP], progress: cliProgress.SingleBar | null = null ){
+const processFile = async function (file: string, quality: number, sizes: number[], pixelRatio: number[], optimizationDir: string, formats: ImageType[] = [ImageType.WEBP], progress: cliProgress.SingleBar | null = null) {
     // console.log(`Processing file: ${file}`.yellow);
     // console.log(`Quality: ${quality}`);
     // console.log(`Sizes: ${sizes}`);
     // console.log(`Pixel Ratio: ${pixelRatio}`);
 
+    const fileHash = md5File.sync(file);
     const fileData = fs.readFileSync(file);
     const pathData = path.parse(file);
     const fullOptimizationDir = pathData.dir + optimizationDir;
@@ -115,8 +135,17 @@ const processFile = async function (file: string, quality: number, sizes: number
     for (const size of sizes) {
         for (const ratio of pixelRatio) {
             for (const format of formats) {
+                const optimizedHash = md5(`${fileHash}-${size}-${ratio}-${format}-${quality}`);
+                if (cachingData.includes(optimizedHash)) {
+                    if (progress) {
+                        progress.increment();
+                    }
+                    continue;
+                }
+
                 await optimizeImage(format, fileData, quality, size, ratio, fullOptimizationDir, fileName);
-                if(progress){
+                cachingData.push(optimizedHash);
+                if (progress) {
                     progress.increment();
                 }
             }
@@ -154,7 +183,7 @@ const optimizeImage = async function (format: ImageType, fileData: Buffer, quali
             });
             break;
     }
-    if (!fs.existsSync(path)){
+    if (!fs.existsSync(path)) {
         fs.mkdirSync(path);
     }
     const optimizedFileNameAndPath = `${path}${baseName}-${size}w-${pixelRatio}x.${format}`;
