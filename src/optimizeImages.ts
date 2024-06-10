@@ -6,6 +6,7 @@ import * as cliProgress from 'cli-progress';
 import * as path from "node:path";
 import sharp from "sharp";
 import loadConfig from "next/dist/server/config";
+import {PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
 
 var mime = require('mime-types');
 const md5File = require('md5-file');
@@ -25,6 +26,12 @@ interface VadImageBlockConfig {
     quality: number;
     imagesPath: string;
     buildFolderPath: string;
+    enableUpload: boolean;
+    uploadAccessKey?: string;
+    uploadSecretKey?: string;
+    uploadDomain?: string;
+    uploadEndpoint?: string;
+    uploadBucket?: string;
 }
 
 enum ImageType {
@@ -36,6 +43,8 @@ enum ImageType {
 
 const cachingData: string[] = [];
 const cachingFilePath = process.cwd() + '/.vadimages-cache.json';
+
+let config: VadImageBlockConfig;
 
 const getFiles = async (dir: string, files: string[] = [], excludePath: string) => {
     // const mime = await import('mime');
@@ -80,7 +89,7 @@ const storeCachingFile = async (path: string = cachingFilePath) => {
 }
 
 const vadimagesNextImageOptimizer = async function () {
-    const config = await loadNextConfig();
+    config = await loadNextConfig();
     await loadCachingFile();
     console.log({config});
 
@@ -188,6 +197,34 @@ const optimizeImage = async function (format: ImageType, fileData: Buffer, quali
     }
     const optimizedFileNameAndPath = `${path}${baseName}-${size}w-${pixelRatio}x.${format}`;
     const info = await transformer.toFile(optimizedFileNameAndPath);
+    if(config.enableUpload){
+        await uploadFile(optimizedFileNameAndPath);
+    }
+}
+
+const uploadFile = async (file: string)=>{
+    const S3 = new S3Client({
+        region: "auto",
+        endpoint: config.uploadEndpoint||'',
+        credentials: {
+            accessKeyId: config.uploadAccessKey||'',
+            secretAccessKey: config.uploadSecretKey||'',
+        },
+    });
+
+    const basePath = prepareImagesPath(config.imagesPath)
+
+    const putObjectCommand = new PutObjectCommand({
+        Bucket: config.uploadBucket,
+        Key: file.replace(basePath, ''),
+        Body: fs.readFileSync(file),
+        ACL: 'public-read',
+        ContentType: mime.lookup(file),
+    });
+
+    await S3.send(putObjectCommand);
+
+    fs.unlinkSync(file);
 }
 
 const loadNextConfig = async function (): Promise<VadImageBlockConfig> {
@@ -224,6 +261,12 @@ const loadNextConfig = async function (): Promise<VadImageBlockConfig> {
         quality: Number(nextjsConfig.env.vadImage_quality) ?? 75,
         imagesPath: nextjsConfig.env.vadImage_imagesPath ?? 'public/images',
         buildFolderPath: nextjsConfig.env.vadImage_buildFolderPath ?? 'build',
+        enableUpload: nextjsConfig.env.vadImage_enableUpload === 'true',
+        uploadBucket: nextjsConfig.env.vadImage_upload_bucket??'bucket',
+        uploadAccessKey: nextjsConfig.env.vadImage_upload_accessKey,
+        uploadSecretKey: nextjsConfig.env.vadImage_upload_secretKey,
+        uploadDomain: nextjsConfig.env.vadImage_upload_domain,
+        uploadEndpoint: nextjsConfig.env.vadImage_upload_endpoint,
     }
 }
 

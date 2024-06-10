@@ -26,6 +26,12 @@ export interface VadImageBlockConfig {
     quality: number;
     imagesPath: string;
     buildFolderPath: string;
+    enableUpload: boolean;
+    uploadAccessKey?: string;
+    uploadSecretKey?: string;
+    uploadDomain?: string;
+    uploadEndpoint?: string;
+    uploadBucket?: string;
 }
 
 export interface VadImageConfig extends NextConfig {
@@ -52,6 +58,9 @@ const VadImage = ({
     const optimizationDirName = process.env.vadImage_optimizationDirName ?? '/opt/';
     const formats = process.env.vadImage_formats?.split(',').map((v) => v as ImageType) ?? [ImageType.WEBP, ImageType.AVIF];
 
+    const enableUpload = process.env.vadImage_enableUpload === 'true';
+    const uploadDomain = process.env.vadImage_upload_domain;
+
     const pathData = path.parse(src as string);
     const mobilePathData = mobileSrc ? path.parse(mobileSrc as string) : null;
 
@@ -60,10 +69,15 @@ const VadImage = ({
             {formats.map((format) => (
                 imagesSizes.map((size) => (
                     pixelRatio.map((ratio) => {
-                        let imageUrl  = `${pathData.dir}${optimizationDirName}${pathData.name}-${size}w-${ratio}x.${format} ${size}w`;
-                        if(mobilePathData && size <= 878){
-                            imageUrl =  `${mobilePathData.dir}${optimizationDirName}${mobilePathData.name}-${size}w-${ratio}x.${format} ${size}w`
+                        let imageUrl = `${pathData.dir}${optimizationDirName}${pathData.name}-${size}w-${ratio}x.${format} ${size}w`;
+                        if (mobilePathData && size <= 878) {
+                            imageUrl = `${mobilePathData.dir}${optimizationDirName}${mobilePathData.name}-${size}w-${ratio}x.${format} ${size}w`
                         }
+
+                        if(enableUpload){
+                            imageUrl = uploadDomain + imageUrl.substring(imageUrl.indexOf('/',2)).replace('/', '%2F');
+                        }
+
                         return (<source media={`(max-width: ${size}px)`} srcSet={imageUrl} type={`image/${format}`}/>);
                     })
                 ))
