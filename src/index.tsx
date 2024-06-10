@@ -1,6 +1,6 @@
 import Image, {ImageProps, StaticImageData} from "next/image";
 import React from "react";
-import path from "node:path";
+const path = require("path");
 import {NextConfig} from "next";
 
 
