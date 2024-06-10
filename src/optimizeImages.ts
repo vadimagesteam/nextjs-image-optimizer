@@ -7,6 +7,7 @@ import * as path from "node:path";
 import sharp from "sharp";
 import loadConfig from "next/dist/server/config";
 import {PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
+import {PromisePool} from "@supercharge/promise-pool";
 
 var mime = require('mime-types');
 const md5File = require('md5-file');
@@ -32,6 +33,7 @@ interface VadImageBlockConfig {
     uploadDomain?: string;
     uploadEndpoint?: string;
     uploadBucket?: string;
+    concurrency: number;
 }
 
 enum ImageType {
@@ -119,9 +121,17 @@ const vadimagesNextImageOptimizer = async function () {
     imagesProgress.start(filesCountToGenerate, 0, {
         speed: "N/A"
     });
-    for (const file of files) {
-        await processFile(file, quality, imagesSizes, pixelRatio, optimizationDirName, formats, imagesProgress);
-    }
+
+    await PromisePool
+        .for(files)
+        .withConcurrency(7)
+        .process(async (file) => {
+            await processFile(file, quality, imagesSizes, pixelRatio, optimizationDirName, formats, imagesProgress);
+        });
+
+    // for (const file of files) {
+    //     await processFile(file, quality, imagesSizes, pixelRatio, optimizationDirName, formats, imagesProgress);
+    // }
     imagesProgress.stop();
     await storeCachingFile();
     console.log('Finish image optimization'.green);
@@ -267,6 +277,7 @@ const loadNextConfig = async function (): Promise<VadImageBlockConfig> {
         uploadSecretKey: nextjsConfig.env.vadImage_upload_secretKey,
         uploadDomain: nextjsConfig.env.vadImage_upload_domain,
         uploadEndpoint: nextjsConfig.env.vadImage_upload_endpoint,
+        concurrency: Number(nextjsConfig.env.vadImage_concurrency) ?? 7,
     }
 }
 
