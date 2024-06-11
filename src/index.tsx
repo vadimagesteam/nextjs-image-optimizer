@@ -75,7 +75,7 @@ const VadImage = ({
                         }
 
                         if(enableUpload){
-                            imageUrl = uploadDomain + imageUrl.substring(imageUrl.indexOf('/',2)).replace('/', '%2F');
+                            imageUrl = uploadDomain + imageUrl.substring(imageUrl.indexOf('/',2)).replace('//','/').replace('/', '%2F');
                         }
 
                         return (<source media={`(max-width: ${size}px)`} srcSet={imageUrl} type={`image/${format}`}/>);
@@ -84,7 +84,7 @@ const VadImage = ({
             ))}
 
             <Image
-                src={src.toString()}
+                src={src.toString().replace('//','/')}
                 alt={alt}
                 width={width}
                 height={height}
