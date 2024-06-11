@@ -43,7 +43,9 @@ enum ImageType {
     AVIF = 'avif'
 }
 
-const cachingData: string[] = [];
+
+
+const cachingData: {[key: string]:string[]} = {};
 const cachingFilePath = process.cwd() + '/.vadimages-cache.json';
 
 let config: VadImageBlockConfig;
@@ -81,13 +83,13 @@ const loadCachingFile = async (path: string = cachingFilePath) => {
     if(fs.existsSync(path)) {
         var obj = JSON.parse(fs.readFileSync(path, 'utf8'));
         for (const key in obj) {
-            cachingData.push(obj[key]);
+            cachingData[key] = obj[key];
         }
     }
 }
 
 const storeCachingFile = async (path: string = cachingFilePath) => {
-    fs.writeFileSync(path, JSON.stringify(cachingData));
+    fs.writeFileSync(path, JSON.stringify(cachingData, null, 4));
 }
 
 const vadimagesNextImageOptimizer = async function () {
@@ -112,7 +114,7 @@ const vadimagesNextImageOptimizer = async function () {
     console.log(`Total images to generate: ${filesCountToGenerate}`.blue)
 
     const imagesProgress = new cliProgress.SingleBar({
-        format: 'Generate images |' + colors.cyan('{bar}') + '| {percentage}% || {value}/{total} Files',
+        format: 'Generate images |' + colors.cyan('{bar}') + '| {percentage}% || {value}/{total} Files | ETA: {eta}s | Duration: {duration}s',
         barCompleteChar: '\u2588',
         barIncompleteChar: '\u2591',
         hideCursor: true,
@@ -148,6 +150,8 @@ const processFile = async function (file: string, quality: number, sizes: number
     const pathData = path.parse(file);
     const fullOptimizationDir = pathData.dir + optimizationDir;
     const fileName = pathData.name;
+    const baseFilePath = file.replace(process.cwd(), '');
+
     if (!fs.existsSync(optimizationDir)) {
         fs.mkdirSync(optimizationDir);
     }
@@ -155,7 +159,7 @@ const processFile = async function (file: string, quality: number, sizes: number
         for (const ratio of pixelRatio) {
             for (const format of formats) {
                 const optimizedHash = md5(`${fileHash}-${size}-${ratio}-${format}-${quality}`);
-                if (cachingData.includes(optimizedHash)) {
+                if (cachingData[baseFilePath] && cachingData[baseFilePath].includes(optimizedHash)) {
                     if (progress) {
                         progress.increment();
                     }
@@ -163,7 +167,10 @@ const processFile = async function (file: string, quality: number, sizes: number
                 }
 
                 await optimizeImage(format, fileData, quality, size, ratio, fullOptimizationDir, fileName);
-                cachingData.push(optimizedHash);
+                if(!cachingData[baseFilePath]){
+                    cachingData[baseFilePath] = [];
+                }
+                cachingData[baseFilePath].push(optimizedHash);
                 if (progress) {
                     progress.increment();
                 }
