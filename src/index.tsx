@@ -1,5 +1,6 @@
 import Image, {ImageProps, StaticImageData} from "next/image";
 import React from "react";
+
 const path = require("path");
 import {NextConfig} from "next";
 
@@ -8,7 +9,9 @@ export interface VadImageProps
     extends Omit<ImageProps, "src" | "quality"> {
     src: string | StaticImageData;
     basePath?: string;
-    mobileSrc?: string | StaticImageData;
+    mobileSrc?: string;
+    mobileWidth?: number;
+    mobileHeight?: number;
 }
 
 export enum ImageType {
@@ -41,6 +44,8 @@ export interface VadImageConfig extends NextConfig {
 const VadImage = ({
                       src,
                       mobileSrc,
+                      mobileHeight,
+                      mobileWidth,
                       priority = false,
                       loading,
                       className,
@@ -70,21 +75,36 @@ const VadImage = ({
                 imagesSizes.map((size) => (
                     pixelRatio.map((ratio) => {
                         let imageUrl = `${pathData.dir}${optimizationDirName}${pathData.name}-${size}w-${ratio}x.${format} ${size}w`;
+                        let sourceWidth = width;
+                        let sourceHeight = height;
                         if (mobilePathData && size <= 878) {
                             imageUrl = `${mobilePathData.dir}${optimizationDirName}${mobilePathData.name}-${size}w-${ratio}x.${format} ${size}w`
+                            if (mobileHeight){
+                                sourceHeight = mobileHeight;
+                            }
+                            if (mobileWidth){
+                                sourceWidth = mobileWidth;
+                            }
                         }
 
-                        if(enableUpload){
-                            imageUrl = uploadDomain + imageUrl.substring(imageUrl.indexOf('/',2)).replace('//','/').replace('/', '%2F');
+                        if (enableUpload) {
+                            imageUrl = uploadDomain + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
                         }
 
-                        return (<source media={`(max-width: ${size}px)`} srcSet={imageUrl} type={`image/${format}`}/>);
+                        return (
+                            <source
+                                media={`(max-width: ${size}px)`}
+                                srcSet={imageUrl}
+                                type={`image/${format}`}
+                                width={sourceWidth}
+                                height={sourceHeight}
+                            />);
                     })
                 ))
             ))}
 
             <Image
-                src={src.toString().replace('//','/')}
+                src={`${pathData.dir}${optimizationDirName}${pathData.name}-${imagesSizes[0]}w-1x.${formats[0]}`.replace('//', '/')}
                 alt={alt}
                 width={width}
                 height={height}

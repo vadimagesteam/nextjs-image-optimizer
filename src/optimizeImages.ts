@@ -165,8 +165,13 @@ const processFile = async function (file: string, quality: number, sizes: number
                     }
                     continue;
                 }
-
-                await optimizeImage(format, fileData, quality, size, ratio, fullOptimizationDir, fileName);
+                try {
+                    await optimizeImage(format, fileData, quality, size, ratio, fullOptimizationDir, fileName);
+                }catch (e){
+                    console.error('');
+                    console.error(`Error while optimizing image: ${file}`.red);
+                    console.error(e);
+                }
                 if(!cachingData[baseFilePath]){
                     cachingData[baseFilePath] = [];
                 }
@@ -191,7 +196,9 @@ const optimizeImage = async function (format: ImageType, fileData: Buffer, quali
     const {width: metaWidth} = await transformer.metadata();
 
     const finalWidth = size * pixelRatio;
-    transformer.resize(finalWidth);
+    if(metaWidth && metaWidth > size) {
+        transformer.resize(finalWidth);
+    }
 
     switch (format) {
         case ImageType.AVIF:
