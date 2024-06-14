@@ -110,15 +110,6 @@ const VadImage = ({
                     let imageUrl = `${pathData.dir}${optimizationDirName}${pathData.name}-${maxImageSize}w-${ratio}x.${format}`;
                     let sourceWidth = width;
                     let sourceHeight = height;
-                    if (mobilePathData) {
-                        imageUrl = `${mobilePathData.dir}${optimizationDirName}${mobilePathData.name}-${maxImageSize}w-${ratio}x.${format}`;
-                        if (mobileHeight){
-                            sourceHeight = mobileHeight;
-                        }
-                        if (mobileWidth){
-                            sourceWidth = mobileWidth;
-                        }
-                    }
 
                     if (enableUpload) {
                         imageUrl = uploadDomain + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
