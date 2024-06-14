@@ -69,6 +69,8 @@ const VadImage = ({
     const pathData = path.parse(src as string);
     const mobilePathData = mobileSrc ? path.parse(mobileSrc as string) : null;
 
+    const maxImageSize = Math.max(...imagesSizes);
+
     return (
         <picture>
             {formats.map((format) => (
@@ -101,6 +103,36 @@ const VadImage = ({
                             />);
                     })
                 ))
+            ))}
+
+            {formats.map((format) => (
+                pixelRatio.map((ratio) => {
+                    let imageUrl = `${pathData.dir}${optimizationDirName}${pathData.name}-${maxImageSize}w-${ratio}x.${format}`;
+                    let sourceWidth = width;
+                    let sourceHeight = height;
+                    if (mobilePathData) {
+                        imageUrl = `${mobilePathData.dir}${optimizationDirName}${mobilePathData.name}-${maxImageSize}w-${ratio}x.${format}`;
+                        if (mobileHeight){
+                            sourceHeight = mobileHeight;
+                        }
+                        if (mobileWidth){
+                            sourceWidth = mobileWidth;
+                        }
+                    }
+
+                    if (enableUpload) {
+                        imageUrl = uploadDomain + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
+                    }
+
+                    return (
+                        <source
+                            media={`(min-width: ${maxImageSize+1}px)`}
+                            srcSet={imageUrl}
+                            type={`image/${format}`}
+                            width={sourceWidth}
+                            height={sourceHeight}
+                        />);
+                })
             ))}
 
             <Image
