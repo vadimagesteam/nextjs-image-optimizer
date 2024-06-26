@@ -150,7 +150,7 @@ const processFile = async function (file: string, quality: number, sizes: number
     const pathData = path.parse(file);
     const fullOptimizationDir = pathData.dir + optimizationDir;
     const fileName = pathData.name;
-    const baseFilePath = file.replace(process.cwd(), '');
+    const baseFilePath = file.replace(process.cwd(), '').replace(/\\/g, '/');
 
     if (!fs.existsSync(optimizationDir)) {
         fs.mkdirSync(optimizationDir);
