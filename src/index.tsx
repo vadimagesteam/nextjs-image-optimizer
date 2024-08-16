@@ -100,6 +100,7 @@ const VadImage = ({
                                 type={`image/${format}`}
                                 width={sourceWidth}
                                 height={sourceHeight}
+                                key={imageUrl.replace(uploadDomain?.toString()||'', '')}
                             />);
                     })
                 ))
@@ -122,6 +123,7 @@ const VadImage = ({
                             type={`image/${format}`}
                             width={sourceWidth}
                             height={sourceHeight}
+                            key={imageUrl.replace(uploadDomain?.toString()||'', '')}
                         />);
                 })
             ))}
