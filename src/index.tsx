@@ -100,7 +100,7 @@ const VadImage = ({
                                 type={`image/${format}`}
                                 width={sourceWidth}
                                 height={sourceHeight}
-                                key={imageUrl.replace(uploadDomain?.toString()||'', '')}
+                                key={`${format}-${size}-${ratio}`}
                             />);
                     })
                 ))
@@ -123,7 +123,7 @@ const VadImage = ({
                             type={`image/${format}`}
                             width={sourceWidth}
                             height={sourceHeight}
-                            key={imageUrl.replace(uploadDomain?.toString()||'', '')}
+                            key={`${format}-${ratio}`}
                         />);
                 })
             ))}
