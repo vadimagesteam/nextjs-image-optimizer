@@ -64,7 +64,7 @@ const VadImage = ({
     const formats = process.env.vadImage_formats?.split(',').map((v) => v as ImageType) ?? [ImageType.WEBP, ImageType.AVIF];
 
     const enableUpload = process.env.vadImage_enableUpload === 'true';
-    const uploadDomain = process.env.vadImage_upload_domain;
+    const uploadDomain = process.env.vadImage_upload_domain?process.env.vadImage_upload_domain.split(',').map((v) => v) : '';
 
     const pathData = path.parse(src as string);
     const mobilePathData = mobileSrc ? path.parse(mobileSrc as string) : null;
@@ -90,7 +90,7 @@ const VadImage = ({
                         }
 
                         if (enableUpload) {
-                            imageUrl = uploadDomain + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
+                            imageUrl = uploadDomain[Math.floor(Math.random() * uploadDomain.length)] + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
                         }
 
                         return (
@@ -113,7 +113,7 @@ const VadImage = ({
                     let sourceHeight = height;
 
                     if (enableUpload) {
-                        imageUrl = uploadDomain + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
+                        imageUrl = uploadDomain[Math.floor(Math.random() * uploadDomain.length)] + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
                     }
 
                     return (
