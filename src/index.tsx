@@ -71,6 +71,14 @@ const VadImage = ({
 
     const maxImageSize = Math.max(...imagesSizes);
 
+    let startImageUrl = `${pathData.dir}${optimizationDirName}${pathData.name}-${imagesSizes[0]}w-1x.${formats[0]}`.replace('//', '/');
+    if(mobilePathData){
+        startImageUrl = `${mobilePathData.dir}${optimizationDirName}${pathData.name}-${imagesSizes[0]}w-1x.${formats[0]}`.replace('//', '/');
+    }
+    if (enableUpload) {
+        startImageUrl = uploadDomain[Math.floor(Math.random() * uploadDomain.length)] + startImageUrl.substring(startImageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
+    }
+
     return (
         <picture>
             {formats.map((format) => (
@@ -129,7 +137,7 @@ const VadImage = ({
             ))}
 
             <Image
-                src={`${pathData.dir}${optimizationDirName}${pathData.name}-${imagesSizes[0]}w-1x.${formats[0]}`.replace('//', '/')}
+                src={startImageUrl}
                 alt={alt}
                 width={width}
                 height={height}
