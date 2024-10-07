@@ -73,7 +73,7 @@ const VadImage = ({
 
     let startImageUrl = `${pathData.dir}${optimizationDirName}${pathData.name}-${imagesSizes[0]}w-1x.${formats[0]}`.replace('//', '/');
     if(mobilePathData){
-        startImageUrl = `${mobilePathData.dir}${optimizationDirName}${pathData.name}-${imagesSizes[0]}w-1x.${formats[0]}`.replace('//', '/');
+        startImageUrl = `${mobilePathData.dir}${optimizationDirName}${mobilePathData.name}-${imagesSizes[0]}w-1x.${formats[0]}`.replace('//', '/');
     }
     if (enableUpload) {
         startImageUrl = uploadDomain[Math.floor(Math.random() * uploadDomain.length)] + startImageUrl.substring(startImageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
