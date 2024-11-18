@@ -12,6 +12,7 @@ export interface VadImageProps
     mobileSrc?: string;
     mobileWidth?: number;
     mobileHeight?: number;
+    useOnlyOneDomain?: boolean;
 }
 
 export enum ImageType {
@@ -54,6 +55,7 @@ const VadImage = ({
                       unoptimized,
                       alt = "",
                       style,
+                      useOnlyOneDomain = false,
                       ...rest
                   }: VadImageProps
 ) => {
@@ -64,7 +66,8 @@ const VadImage = ({
     const formats = process.env.vadImage_formats?.split(',').map((v) => v as ImageType) ?? [ImageType.WEBP, ImageType.AVIF];
 
     const enableUpload = process.env.vadImage_enableUpload === 'true';
-    const uploadDomain = process.env.vadImage_upload_domain?process.env.vadImage_upload_domain.split(',').map((v) => v) : '';
+    const uploadDomain = process.env.vadImage_upload_domain ? process.env.vadImage_upload_domain.split(',').map((v) => v) : '';
+    const cdnIndex = useOnlyOneDomain ? 0 : Math.floor(Math.random() * uploadDomain.length);
 
     const pathData = path.parse(src as string);
     const mobilePathData = mobileSrc ? path.parse(mobileSrc as string) : null;
@@ -72,11 +75,11 @@ const VadImage = ({
     const maxImageSize = Math.max(...imagesSizes);
 
     let startImageUrl = `${pathData.dir}${optimizationDirName}${pathData.name}-${imagesSizes[0]}w-1x.${formats[0]}`.replace('//', '/');
-    if(mobilePathData){
+    if (mobilePathData) {
         startImageUrl = `${mobilePathData.dir}${optimizationDirName}${mobilePathData.name}-${imagesSizes[0]}w-1x.${formats[0]}`.replace('//', '/');
     }
     if (enableUpload) {
-        startImageUrl = uploadDomain[Math.floor(Math.random() * uploadDomain.length)] + startImageUrl.substring(startImageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
+        startImageUrl = uploadDomain[cdnIndex] + startImageUrl.substring(startImageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
     }
 
     return (
@@ -89,16 +92,21 @@ const VadImage = ({
                         let sourceHeight = height;
                         if (mobilePathData && size <= 878) {
                             imageUrl = `${mobilePathData.dir}${optimizationDirName}${mobilePathData.name}-${size}w-${ratio}x.${format} ${size}w`
-                            if (mobileHeight){
+                            if (mobileHeight) {
                                 sourceHeight = mobileHeight;
                             }
-                            if (mobileWidth){
+                            if (mobileWidth) {
                                 sourceWidth = mobileWidth;
                             }
                         }
 
                         if (enableUpload) {
-                            imageUrl = uploadDomain[Math.floor(Math.random() * uploadDomain.length)] + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
+                            // let cdnIndex = size === imagesSizes[0] && ratio === pixelRatio[0] && format === formats[0] ?
+                            //     0 : Math.floor(Math.random() * uploadDomain.length);
+                            // if (useOnlyOneDomain) {
+                            //     cdnIndex = 0;
+                            // }
+                            imageUrl = uploadDomain[cdnIndex] + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
                         }
 
                         return (
@@ -121,12 +129,13 @@ const VadImage = ({
                     let sourceHeight = height;
 
                     if (enableUpload) {
-                        imageUrl = uploadDomain[Math.floor(Math.random() * uploadDomain.length)] + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
+
+                        imageUrl = uploadDomain[cdnIndex] + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
                     }
 
                     return (
                         <source
-                            media={`(min-width: ${maxImageSize+1}px)`}
+                            media={`(min-width: ${maxImageSize + 1}px)`}
                             srcSet={imageUrl}
                             type={`image/${format}`}
                             width={sourceWidth}
