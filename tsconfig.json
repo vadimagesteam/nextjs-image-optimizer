@@ -103,8 +103,11 @@
     "example",
     "next-example",
     "dist",
+    "scripts",
     "src/optimizeImages.ts",
-    "tsup.config.ts"
+    "src/__tests__",
+    "tsup.config.ts",
+    "vitest.config.ts"
   ],
   "files": [
     "src/index.tsx"
