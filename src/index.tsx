@@ -1,6 +1,5 @@
 import Image, {ImageProps, StaticImageData} from "next/image";
 import React from "react";
-import path from "node:path";
 import {NextConfig} from "next";
 
 export enum ImageType {
@@ -82,6 +81,16 @@ const readEnv = (): EnvConfig => {
 const resolveSrc = (src: string | StaticImageData): string =>
     typeof src === 'string' ? src : src.src;
 
+const parseSrc = (src: string): {dir: string; name: string; ext: string} => {
+    const slash = src.lastIndexOf('/');
+    const dot = src.lastIndexOf('.');
+    return {
+        dir: slash >= 0 ? src.slice(0, slash) : '',
+        name: src.slice(slash + 1, dot > slash ? dot : undefined),
+        ext: dot > slash ? src.slice(dot) : ''
+    };
+};
+
 const rewriteForUpload = (imageUrl: string, cdnDomain: string): string =>
     cdnDomain + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
 
@@ -117,7 +126,7 @@ export function resolveVadImageUrl(
     opts?: ResolveVadImageUrlOptions
 ): string {
     const cfg = readEnv();
-    const pathData = path.parse(resolveSrc(src));
+    const pathData = parseSrc(resolveSrc(src));
     const size = opts?.size ?? Math.max(...cfg.imagesSizes);
     const format = opts?.format ?? cfg.formats[0];
     const ratio = opts?.pixelRatio ?? 1;
@@ -154,8 +163,8 @@ const VadImage = ({
     const cdnIndex = pickCdnIndex(uploadDomains, !!useOnlyOneDomain);
     const cdnDomain = uploadDomains[cdnIndex];
 
-    const pathData = path.parse(resolveSrc(src));
-    const mobilePathData = mobileSrc ? path.parse(mobileSrc) : null;
+    const pathData = parseSrc(resolveSrc(src));
+    const mobilePathData = mobileSrc ? parseSrc(mobileSrc) : null;
     const maxImageSize = Math.max(...imagesSizes);
 
     if (onlyMain) {
@@ -329,8 +338,8 @@ export function VadImagePreload({
                                     useOnlyOneDomain
                                 }: VadImagePreloadProps) {
     const cfg = readEnv();
-    const pathData = path.parse(resolveSrc(src));
-    const mobilePathData = mobileSrc ? path.parse(mobileSrc) : null;
+    const pathData = parseSrc(resolveSrc(src));
+    const mobilePathData = mobileSrc ? parseSrc(mobileSrc) : null;
     const cdnIndex = pickCdnIndex(cfg.uploadDomains, !!useOnlyOneDomain);
     const cdnDomain = cfg.uploadDomains[cdnIndex];
     const format = cfg.formats[0];

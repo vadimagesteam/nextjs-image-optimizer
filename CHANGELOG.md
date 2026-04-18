@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.7.2
+
+### Fixed
+
+- **Webpack `UnhandledSchemeError` in client components.** `dist/index.js` no longer imports `node:path`. The `node:` protocol is Node-only and is not polyfilled by webpack / Turbopack / esbuild for browser targets, so any downstream Next.js project that used `<VadImage>` in a client component failed to build with `UnhandledSchemeError: Reading from "node:path" is not handled by plugins`. The component entry now has zero Node built-in dependencies — `path.parse()` is replaced with a small inline parser — which also drops `path-browserify` (~6 KB) from every consumer's client bundle and makes the component usable in edge runtime and workers without extra config.
+- **Regression test** added: `dist/index.js` is asserted to contain no `node:` imports (or `"path"` imports) after every build. Would have caught the 1.7.1 break before publish.
+
+### Unchanged
+
+- The CLI (`dist/optimizeImages.js`) keeps `node:path` since it runs only under Node.
+- All runtime behavior, props, env vars, filename convention, and peer-dep ranges are identical to 1.7.1.
+
 ## 1.7.1
 
 ### Restored (regressed in 1.7.0)
