@@ -1,7 +1,6 @@
 import Image, {ImageProps, StaticImageData} from "next/image";
 import React from "react";
-
-const path = require("path");
+import path from "node:path";
 import {NextConfig} from "next";
 
 
@@ -41,6 +40,29 @@ export interface VadImageConfig extends NextConfig {
     VadImage: VadImageBlockConfig
 }
 
+const imagesSizes = process.env.vadImage_imagesSizes?.split(',').map((v) => Number(v)) ?? [320, 512, 480, 640, 787, 1024, 1280, 1440, 1920];
+const pixelRatio = process.env.vadImage_pixelRatio?.split(',').map((v) => Number(v)) ?? [1, 2, 3];
+const optimizationDirName = process.env.vadImage_optimizationDirName ?? '/opt/';
+const formats = process.env.vadImage_formats?.split(',').map((v) => v as ImageType) ?? [ImageType.WEBP, ImageType.AVIF];
+const enableUpload = process.env.vadImage_enableUpload === 'true';
+const uploadDomain = process.env.vadImage_upload_domain;
+const maxImageSize = Math.max(...imagesSizes);
+
+const resolveSrc = (src: string | StaticImageData): string =>
+    typeof src === 'string' ? src : src.src;
+
+const rewriteForUpload = (imageUrl: string): string =>
+    uploadDomain + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
+
+const buildSrcSet = (dir: string, name: string, size: number, format: ImageType): string =>
+    pixelRatio.map((ratio) => {
+        let imageUrl = `${dir}${optimizationDirName}${name}-${size}w-${ratio}x.${format}`;
+        if (enableUpload) {
+            imageUrl = rewriteForUpload(imageUrl);
+        }
+        return `${imageUrl} ${ratio}x`;
+    }).join(', ');
+
 const VadImage = ({
                       src,
                       mobileSrc,
@@ -57,73 +79,43 @@ const VadImage = ({
                       ...rest
                   }: VadImageProps
 ) => {
-
-    const imagesSizes = process.env.vadImage_imagesSizes?.split(',').map((v) => Number(v)) ?? [320, 512, 480, 640, 787, 1024, 1280, 1440, 1920];
-    const pixelRatio = process.env.vadImage_pixelRatio?.split(',').map((v) => Number(v)) ?? [1, 2, 3];
-    const optimizationDirName = process.env.vadImage_optimizationDirName ?? '/opt/';
-    const formats = process.env.vadImage_formats?.split(',').map((v) => v as ImageType) ?? [ImageType.WEBP, ImageType.AVIF];
-
-    const enableUpload = process.env.vadImage_enableUpload === 'true';
-    const uploadDomain = process.env.vadImage_upload_domain;
-
-    const pathData = path.parse(src as string);
-    const mobilePathData = mobileSrc ? path.parse(mobileSrc as string) : null;
-
-    const maxImageSize = Math.max(...imagesSizes);
+    const pathData = path.parse(resolveSrc(src));
+    const mobilePathData = mobileSrc ? path.parse(mobileSrc) : null;
 
     return (
         <picture>
             {formats.map((format) => (
-                imagesSizes.map((size) => (
-                    pixelRatio.map((ratio) => {
-                        let imageUrl = `${pathData.dir}${optimizationDirName}${pathData.name}-${size}w-${ratio}x.${format} ${size}w`;
-                        let sourceWidth = width;
-                        let sourceHeight = height;
-                        if (mobilePathData && size <= 878) {
-                            imageUrl = `${mobilePathData.dir}${optimizationDirName}${mobilePathData.name}-${size}w-${ratio}x.${format} ${size}w`
-                            if (mobileHeight){
-                                sourceHeight = mobileHeight;
-                            }
-                            if (mobileWidth){
-                                sourceWidth = mobileWidth;
-                            }
-                        }
-
-                        if (enableUpload) {
-                            imageUrl = uploadDomain + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
-                        }
-
-                        return (
-                            <source
-                                media={`(max-width: ${size}px)`}
-                                srcSet={imageUrl}
-                                type={`image/${format}`}
-                                width={sourceWidth}
-                                height={sourceHeight}
-                            />);
-                    })
-                ))
-            ))}
-
-            {formats.map((format) => (
-                pixelRatio.map((ratio) => {
-                    let imageUrl = `${pathData.dir}${optimizationDirName}${pathData.name}-${maxImageSize}w-${ratio}x.${format}`;
+                imagesSizes.map((size) => {
+                    let basePathData = pathData;
                     let sourceWidth = width;
                     let sourceHeight = height;
-
-                    if (enableUpload) {
-                        imageUrl = uploadDomain + imageUrl.substring(imageUrl.indexOf('/', 2)).replace('//', '/').replace('/', '%2F');
+                    if (mobilePathData && size <= 878) {
+                        basePathData = mobilePathData;
+                        if (mobileHeight) sourceHeight = mobileHeight;
+                        if (mobileWidth) sourceWidth = mobileWidth;
                     }
-
                     return (
                         <source
-                            media={`(min-width: ${maxImageSize+1}px)`}
-                            srcSet={imageUrl}
+                            key={`${format}-${size}`}
+                            media={`(max-width: ${size}px)`}
+                            srcSet={buildSrcSet(basePathData.dir, basePathData.name, size, format)}
                             type={`image/${format}`}
                             width={sourceWidth}
                             height={sourceHeight}
-                        />);
+                        />
+                    );
                 })
+            ))}
+
+            {formats.map((format) => (
+                <source
+                    key={`${format}-max`}
+                    media={`(min-width: ${maxImageSize + 1}px)`}
+                    srcSet={buildSrcSet(pathData.dir, pathData.name, maxImageSize, format)}
+                    type={`image/${format}`}
+                    width={width}
+                    height={height}
+                />
             ))}
 
             <Image

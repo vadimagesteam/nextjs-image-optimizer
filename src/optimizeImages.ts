@@ -5,13 +5,13 @@ import fs from 'fs';
 import * as cliProgress from 'cli-progress';
 import * as path from "node:path";
 import sharp from "sharp";
-import loadConfig from "next/dist/server/config";
 import {PutObjectCommand, S3Client} from "@aws-sdk/client-s3";
 import {PromisePool} from "@supercharge/promise-pool";
 
 var mime = require('mime-types');
-const md5File = require('md5-file');
 var md5 = require('md5');
+
+const MAX_INPUT_PIXELS = 1_000_000_000;
 
 
 
@@ -51,18 +51,16 @@ const cachingFilePath = process.cwd() + '/.vadimages-cache.json';
 let config: VadImageBlockConfig;
 
 const getFiles = async (dir: string, files: string[] = [], excludePath: string) => {
-    // const mime = await import('mime');
-    // Get an array of all files and directories in the passed directory using fs.readdirSync
     const fileList = fs.readdirSync(dir);
-    // Create the full path of the file/directory by concatenating the passed directory and file/directory name
     for (const file of fileList) {
         const name = `${dir}/${file}`
-        // Check if the current file/directory is a directory using fs.statSync
-        if (fs.statSync(name).isDirectory()) {
-            // If it is a directory, recursively call the getFiles function with the directory path and the files array
+        const stat = fs.lstatSync(name);
+        if (stat.isSymbolicLink()) {
+            continue;
+        }
+        if (stat.isDirectory()) {
             getFiles(name, files, excludePath)
-        } else {
-            // If it is a file, push the full path to the files array
+        } else if (stat.isFile()) {
             const fileType = mime.lookup(name);
             if (fileType && fileType?.includes('image') && !name.includes(excludePath)) {
                 files.push(path.resolve(name));
@@ -89,13 +87,16 @@ const loadCachingFile = async (path: string = cachingFilePath) => {
 }
 
 const storeCachingFile = async (path: string = cachingFilePath) => {
-    fs.writeFileSync(path, JSON.stringify(cachingData, null, 4));
+    const tmpPath = `${path}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(cachingData, null, 4));
+    fs.renameSync(tmpPath, path);
 }
 
 const vadimagesNextImageOptimizer = async function () {
     config = await loadNextConfig();
     await loadCachingFile();
-    console.log({config});
+    const {uploadAccessKey, uploadSecretKey, ...safeConfig} = config;
+    console.log({config: {...safeConfig, uploadAccessKey: uploadAccessKey ? '***' : undefined, uploadSecretKey: uploadSecretKey ? '***' : undefined}});
 
     const quality = config.quality;
     const imagesPath = prepareImagesPath(config.imagesPath);
@@ -126,7 +127,7 @@ const vadimagesNextImageOptimizer = async function () {
 
     await PromisePool
         .for(files)
-        .withConcurrency(7)
+        .withConcurrency(config.concurrency)
         .process(async (file) => {
             await processFile(file, quality, imagesSizes, pixelRatio, optimizationDirName, formats, imagesProgress);
         });
@@ -140,21 +141,18 @@ const vadimagesNextImageOptimizer = async function () {
 }
 
 const processFile = async function (file: string, quality: number, sizes: number[], pixelRatio: number[], optimizationDir: string, formats: ImageType[] = [ImageType.WEBP], progress: cliProgress.SingleBar | null = null) {
-    // console.log(`Processing file: ${file}`.yellow);
-    // console.log(`Quality: ${quality}`);
-    // console.log(`Sizes: ${sizes}`);
-    // console.log(`Pixel Ratio: ${pixelRatio}`);
-
-    const fileHash = md5File.sync(file);
     const fileData = fs.readFileSync(file);
+    const fileHash = md5(fileData);
     const pathData = path.parse(file);
     const fullOptimizationDir = pathData.dir + optimizationDir;
     const fileName = pathData.name;
     const baseFilePath = file.replace(process.cwd(), '');
 
-    if (!fs.existsSync(optimizationDir)) {
-        fs.mkdirSync(optimizationDir);
-    }
+    const {width: metaWidth} = await sharp(fileData, {
+        animated: true,
+        limitInputPixels: MAX_INPUT_PIXELS,
+    }).metadata();
+
     for (const size of sizes) {
         for (const ratio of pixelRatio) {
             for (const format of formats) {
@@ -166,7 +164,7 @@ const processFile = async function (file: string, quality: number, sizes: number
                     continue;
                 }
                 try {
-                    await optimizeImage(format, fileData, quality, size, ratio, fullOptimizationDir, fileName);
+                    await optimizeImage(format, fileData, quality, size, ratio, fullOptimizationDir, fileName, metaWidth);
                 }catch (e){
                     console.error('');
                     console.error(`Error while optimizing image: ${file}`.red);
@@ -185,15 +183,13 @@ const processFile = async function (file: string, quality: number, sizes: number
     }
 }
 
-const optimizeImage = async function (format: ImageType, fileData: Buffer, quality: number, size: number, pixelRatio: number, path: string, baseName: string) {
+const optimizeImage = async function (format: ImageType, fileData: Buffer, quality: number, size: number, pixelRatio: number, path: string, baseName: string, metaWidth?: number) {
     const transformer = sharp(fileData, {
         animated: true,
-        limitInputPixels: false, // disable pixel limit
+        limitInputPixels: MAX_INPUT_PIXELS,
     });
 
     transformer.rotate();
-
-    const {width: metaWidth} = await transformer.metadata();
 
     const finalWidth = size * pixelRatio;
     if(metaWidth && metaWidth > size) {
@@ -236,11 +232,15 @@ const uploadFile = async (file: string)=>{
         },
     });
 
-    const basePath = prepareImagesPath(config.imagesPath)
+    const basePath = prepareImagesPath(config.imagesPath);
+    const relative = path.relative(basePath, file);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new Error(`Upload refused: file ${file} is outside imagesPath ${basePath}`);
+    }
 
     const putObjectCommand = new PutObjectCommand({
         Bucket: config.uploadBucket,
-        Key: file.replace(basePath, ''),
+        Key: relative,
         Body: fs.readFileSync(file),
         ACL: 'public-read',
         ContentType: mime.lookup(file),
@@ -254,25 +254,30 @@ const uploadFile = async (file: string)=>{
 const loadNextConfig = async function (): Promise<VadImageBlockConfig> {
 
     const nextConfigPathIndex = process.argv.indexOf("--nextConfigPath");
-
-    let nextConfigPath =
+    const nextConfigPath =
         nextConfigPathIndex !== -1
             ? process.argv[nextConfigPathIndex + 1]
             : undefined;
 
-    if (nextConfigPath) {
-        nextConfigPath = path.isAbsolute(nextConfigPath)
-            ? nextConfigPath
-            : path.join(process.cwd(), nextConfigPath);
-    } else {
-        nextConfigPath = path.join(process.cwd(), "next.config.js");
+    const nextConfigFolder = nextConfigPath
+        ? path.dirname(path.isAbsolute(nextConfigPath) ? nextConfigPath : path.join(process.cwd(), nextConfigPath))
+        : process.cwd();
+
+    let loadConfig: typeof import("next/dist/server/config").default;
+    try {
+        loadConfig = (await import("next/dist/server/config")).default;
+    } catch (e) {
+        throw new Error(
+            `Failed to load next/dist/server/config — this is an internal Next.js path and may have moved. ` +
+            `vadimages-nextjs-image-optimizer is tested against Next.js 15 and 16; newer versions may require a package update. ` +
+            `Original error: ${e instanceof Error ? e.message : String(e)}`
+        );
     }
-    const nextConfigFolder = path.dirname(nextConfigPath);
+
     const nextjsConfig = await loadConfig("phase-export", nextConfigFolder);
 
-// Check if nextjsConfig is an object or is undefined
     if (typeof nextjsConfig !== "object" || nextjsConfig === null) {
-        throw new Error("next.config.js is not an object");
+        throw new Error("next.config is not an object");
     }
     // const legacyPath = nextjsConfig.images?.nextImageExportOptimizer;
     // const newPath = nextjsConfig.env;
@@ -282,7 +287,7 @@ const loadNextConfig = async function (): Promise<VadImageBlockConfig> {
         pixelRatio: nextjsConfig.env.vadImage_pixelRatio?.split(',').map((v) => Number(v)) ?? [1, 2, 3],
         optimizationDirName: nextjsConfig.env.vadImage_optimizationDirName ?? '/opt/',
         formats: nextjsConfig.env.vadImage_formats?.split(',').map((v) => v as ImageType) ?? [ImageType.WEBP, ImageType.AVIF],
-        quality: Number(nextjsConfig.env.vadImage_quality) ?? 75,
+        quality: Number(nextjsConfig.env.vadImage_quality) || 75,
         imagesPath: nextjsConfig.env.vadImage_imagesPath ?? 'public/images',
         buildFolderPath: nextjsConfig.env.vadImage_buildFolderPath ?? 'build',
         enableUpload: nextjsConfig.env.vadImage_enableUpload === 'true',
@@ -291,7 +296,7 @@ const loadNextConfig = async function (): Promise<VadImageBlockConfig> {
         uploadSecretKey: nextjsConfig.env.vadImage_upload_secretKey,
         uploadDomain: nextjsConfig.env.vadImage_upload_domain,
         uploadEndpoint: nextjsConfig.env.vadImage_upload_endpoint,
-        concurrency: Number(nextjsConfig.env.vadImage_concurrency) ?? 7,
+        concurrency: Number(nextjsConfig.env.vadImage_concurrency) || 7,
     }
 }
 
