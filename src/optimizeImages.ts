@@ -222,6 +222,20 @@ const optimizeImage = async function (format: ImageType, fileData: Buffer, quali
     }
 }
 
+/*
+ * The object key must match the path that the CDN URL decodes to. VadImage
+ * builds that URL by percent-encoding the leading slash (`/blogs/a.webp` ->
+ * `%2Fblogs/a.webp`), so the key it resolves to keeps that leading slash.
+ * Emit forward slashes so a Windows build uploads the same key as a POSIX one.
+ */
+const uploadKeyForFile = (basePath: string, file: string): string => {
+    const relative = path.relative(basePath, file);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new Error(`Upload refused: file ${file} is outside imagesPath ${basePath}`);
+    }
+    return '/' + relative.split(path.sep).join('/');
+};
+
 const uploadFile = async (file: string)=>{
     const S3 = new S3Client({
         region: "auto",
@@ -233,14 +247,10 @@ const uploadFile = async (file: string)=>{
     });
 
     const basePath = prepareImagesPath(config.imagesPath);
-    const relative = path.relative(basePath, file);
-    if (relative.startsWith('..') || path.isAbsolute(relative)) {
-        throw new Error(`Upload refused: file ${file} is outside imagesPath ${basePath}`);
-    }
 
     const putObjectCommand = new PutObjectCommand({
         Bucket: config.uploadBucket,
-        Key: relative,
+        Key: uploadKeyForFile(basePath, file),
         Body: fs.readFileSync(file),
         ACL: 'public-read',
         ContentType: mime.lookup(file),
@@ -304,3 +314,4 @@ if (require.main === module) {
     vadimagesNextImageOptimizer();
 }
 module.exports = vadimagesNextImageOptimizer;
+module.exports.uploadKeyForFile = uploadKeyForFile;

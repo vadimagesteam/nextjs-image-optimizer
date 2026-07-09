@@ -1,6 +1,6 @@
 {
   "name": "vadimages-nextjs-image-optimizer",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Auto image optimization with mobile image support",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
